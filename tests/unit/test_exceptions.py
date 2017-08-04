@@ -16,6 +16,12 @@ from nose.tools import assert_equal
 from botocore import exceptions
 
 
+def test_client_error_can_handle_missing_error():
+    response = {}
+    expect = 'An error occurred (Unknown) when calling the blackhole operation: Unknown'
+    assert_equal(str(exceptions.ClientError(response, 'blackhole')), expect)
+
+
 def test_client_error_can_handle_missing_code_or_message():
     response = {'Error': {}}
     expect = 'An error occurred (Unknown) when calling the blackhole operation: Unknown'
