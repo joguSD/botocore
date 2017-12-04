@@ -17,10 +17,10 @@ import logging
 import time
 import threading
 
-from botocore.vendored.requests.adapters import HTTPAdapter
-from botocore.vendored.requests.sessions import Session
-from botocore.vendored.requests.utils import get_environ_proxies
-from botocore.vendored.requests.exceptions import ConnectionError
+from requests.adapters import HTTPAdapter
+from requests.sessions import Session
+from requests.utils import get_environ_proxies
+from requests.exceptions import ConnectionError
 from botocore.vendored import six
 
 from botocore.awsrequest import create_request_object
@@ -42,7 +42,7 @@ MAX_POOL_CONNECTIONS = 10
 filter_ssl_warnings()
 
 try:
-    from botocore.vendored.requests.packages.urllib3.contrib import pyopenssl
+    from requests.packages.urllib3.contrib import pyopenssl
     pyopenssl.extract_from_urllib3()
 except ImportError:
     pass

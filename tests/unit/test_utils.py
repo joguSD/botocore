@@ -27,7 +27,7 @@ from botocore.exceptions import InvalidExpressionError, ConfigNotFound
 from botocore.exceptions import ClientError
 from botocore.exceptions import InvalidDNSNameError, MetadataRetrievalError
 from botocore.model import ServiceModel
-from botocore.vendored import requests
+import requests
 from botocore.utils import is_json_value_header
 from botocore.utils import remove_dot_segments
 from botocore.utils import normalize_url_path

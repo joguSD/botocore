@@ -23,15 +23,15 @@ from botocore.compat import HTTPHeaders, HTTPResponse, urlunsplit, urlsplit,\
     urlparse
 from botocore.exceptions import UnseekableStreamError
 from botocore.utils import percent_encode_sequence
-from botocore.vendored.requests import models
-from botocore.vendored.requests.sessions import REDIRECT_STATI
-from botocore.vendored.requests.packages.urllib3.connection import \
+from requests import models
+from requests.sessions import REDIRECT_STATI
+from requests.packages.urllib3.connection import \
     VerifiedHTTPSConnection
-from botocore.vendored.requests.packages.urllib3.connection import \
+from requests.packages.urllib3.connection import \
     HTTPConnection
-from botocore.vendored.requests.packages.urllib3.connectionpool import \
+from requests.packages.urllib3.connectionpool import \
     HTTPConnectionPool
-from botocore.vendored.requests.packages.urllib3.connectionpool import \
+from requests.packages.urllib3.connectionpool import \
     HTTPSConnectionPool
 
 
@@ -250,14 +250,27 @@ class AWSHTTPConnection(HTTPConnection):
 
 
 class AWSHTTPSConnection(VerifiedHTTPSConnection):
-    pass
+
+    def __init__(self, *args, **kwargs):
+        VerifiedHTTPSConnection.__init__(self, *args, **kwargs)
+        self._original_response_cls = self.response_class
+        # We'd ideally hook into httplib's states, but they're all
+        # __mangled_vars so we use our own state var.  This variable is set
+        # when we receive an early response from the server.  If this value is
+        # set to True, any calls to send() are noops.  This value is reset to
+        # false every time _send_request is called.  This is to workaround the
+        # fact that py2.6 (and only py2.6) has a separate send() call for the
+        # body in _send_request, as opposed to endheaders(), which is where the
+        # body is sent in all versions > 2.6.
+        self._response_received = False
+        self._expect_header_set = False
 
 
 # Now we need to set the methods we overrode from AWSHTTPConnection
 # onto AWSHTTPSConnection.  This is just a shortcut to avoid
 # copy/pasting the same code into AWSHTTPSConnection.
 for name, function in AWSHTTPConnection.__dict__.items():
-    if inspect.isfunction(function):
+    if inspect.isfunction(function) and function.__name__ != '__init__':
         setattr(AWSHTTPSConnection, name, function)
 
 
