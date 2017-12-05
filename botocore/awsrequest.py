@@ -361,7 +361,7 @@ class AWSRequest(models.RequestEncodingMixin, models.Request):
         headers = HTTPHeaders()
         if self.headers is not None:
             for key, value in self.headers.items():
-                headers[key] = value
+                headers[key] = value.strip()
         self.headers = headers
         # This is a dictionary to hold information that is used when
         # processing the request. What is inside of ``context`` is open-ended.
