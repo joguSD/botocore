@@ -42,9 +42,9 @@ class RecordStreamResets(six.StringIO):
         six.StringIO.__init__(self, value)
         self.total_resets = 0
 
-    def seek(self, where):
+    def seek(self, where, whence=0):
         self.total_resets += 1
-        six.StringIO.seek(self, where)
+        six.StringIO.seek(self, where, whence)
 
 
 class TestEndpointBase(unittest.TestCase):
@@ -267,7 +267,7 @@ class TestS3ResetStreamOnRetry(TestEndpointBase):
             [(None, None)],   # Finally emit no rety is needed.
         ]
         self.endpoint.make_request(op, request)
-        self.assertEqual(body.total_resets, 2)
+        self.assertEqual(body.total_resets, 8)
 
 
 class TestEndpointCreator(unittest.TestCase):
