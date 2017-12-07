@@ -110,7 +110,7 @@ class TestEndpointFeatures(TestEndpointBase):
     def test_make_request_injects_better_dns_error_msg(self):
         fake_request = Mock(url='https://ec2.us-west-2.amazonaws.com')
         self.http_session.send.side_effect = ConnectionError(
-            "Fake gaierror(8, node or host not known)", request=fake_request)
+            "Fake NewConnectionError", request=fake_request)
         with self.assertRaisesRegexp(EndpointConnectionError,
                                      'Could not connect'):
             self.endpoint.make_request(self.op, request_dict())

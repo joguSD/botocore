@@ -21,6 +21,7 @@ from requests.adapters import HTTPAdapter
 from requests.sessions import Session
 from requests.utils import get_environ_proxies
 from requests.exceptions import ConnectionError
+from urllib3.exceptions import NewConnectionError
 from botocore.vendored import six
 
 from botocore.awsrequest import create_request_object
@@ -250,7 +251,7 @@ class Endpoint(object):
         return (http_response, parsed_response), None
 
     def _looks_like_dns_error(self, e):
-        return 'gaierror' in str(e) and e.request is not None
+        return 'NewConnectionError' in str(e) and e.request is not None
 
     def _looks_like_bad_status_line(self, e):
         return 'BadStatusLine' in str(e) and e.request is not None
