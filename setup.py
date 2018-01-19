@@ -23,6 +23,7 @@ def find_version(*file_paths):
     raise RuntimeError("Unable to find version string.")
 
 
+# TODO: we need to add requests here or vendor a newer version
 requires = ['jmespath>=0.7.1,<1.0.0',
             'python-dateutil>=2.1,<3.0.0',
             'docutils>=0.10']
