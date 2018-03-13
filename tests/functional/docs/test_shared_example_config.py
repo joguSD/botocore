@@ -114,6 +114,7 @@ def _assert_valid_map_values(shape, example_value, path):
 
 
 def _assert_valid_timestamp(timestamp, path):
+    parse_timestamp(timestamp).timetuple()
     try:
         parse_timestamp(timestamp).timetuple()
     except Exception as e:
