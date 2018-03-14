@@ -19,6 +19,8 @@ def test_lint_shared_example_configs():
     session = botocore.session.Session()
     loader = session.get_component('data_loader')
     services = loader.list_available_services('examples-1')
+    import sys
+    print(sys.stdout)
     for service in services:
         service_model = session.get_service_model(service)
         example_config = loader.load_service_model(
