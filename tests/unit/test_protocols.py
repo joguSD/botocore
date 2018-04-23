@@ -140,6 +140,7 @@ class MockRawResponse(object):
     def stream(self):
         yield self._data
 
+    read_chunked = stream
 
 def _test_output(json_description, case, basename):
     service_description = copy.deepcopy(json_description)
