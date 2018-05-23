@@ -919,9 +919,11 @@ class S3RegionRedirector(object):
             error_code == 'AuthorizationHeaderMalformed' and
             'Region' in error
         )
+        is_redirect_status = response[0] is not None and \
+                response[0].status_code in [301, 302, 307]
         is_permanent_redirect = error_code == 'PermanentRedirect'
         if not any([is_special_head_object, is_wrong_signing_region,
-                    is_permanent_redirect]):
+                    is_permanent_redirect, is_redirect_status]):
             return
 
         bucket = request_dict['context']['signing']['bucket']
