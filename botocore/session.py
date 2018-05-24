@@ -85,6 +85,7 @@ class Session(object):
         'data_path': ('data_path', 'AWS_DATA_PATH', None, None),
         'config_file': (None, 'AWS_CONFIG_FILE', '~/.aws/config', None),
         'ca_bundle': ('ca_bundle', 'AWS_CA_BUNDLE', None, None),
+        'h2_enabled': ('h2_enabled', 'AWS_H2_ENABLED', None, None),
         'api_versions': ('api_versions', None, {}, None),
 
         # This is the shared credentials file amongst sdks.
@@ -846,6 +847,12 @@ class Session(object):
             else:
                 region_name = self.get_config_variable('region')
 
+        if config and config.h2_enabled is not None:
+            h2_enabled = config.h2_enabled
+        else:
+            h2_enabled = self.get_config_variable('h2_enabled')
+        h2_enabled = h2_enabled in [True, 'true', 'True']
+
         # Figure out the verify value base on the various
         # configuration options.
         if verify is None:
@@ -882,7 +889,8 @@ class Session(object):
             service_name=service_name, region_name=region_name,
             is_secure=use_ssl, endpoint_url=endpoint_url, verify=verify,
             credentials=credentials, scoped_config=self.get_scoped_config(),
-            client_config=config, api_version=api_version)
+            client_config=config, api_version=api_version,
+            h2_enabled=h2_enabled)
         return client
 
     def _missing_cred_vars(self, access_key, secret_key):

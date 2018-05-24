@@ -11,6 +11,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 
+from nose.tools import raises
 from tests import unittest, BaseSessionTest
 
 import base64
@@ -24,6 +25,7 @@ import botocore.session
 from botocore.compat import OrderedDict
 from botocore.exceptions import ParamValidationError, MD5UnavailableError
 from botocore.exceptions import AliasConflictParameterError
+from botocore.exceptions import H2ConfigurationError
 from botocore.awsrequest import AWSRequest
 from botocore.compat import quote, six
 from botocore.config import Config
@@ -907,6 +909,12 @@ class TestHandlers(BaseSessionTest):
             context=context, signing_name=signing_name)
         self.assertEqual(response, 's3v4')
         self.assertEqual(context.get('payload_signing_enabled'), False)
+
+    @raises(H2ConfigurationError)
+    def test_block_event_streams(self):
+        operation_model = mock.Mock(spec=OperationModel)
+        operation_model.has_event_stream_output = True
+        handlers.block_event_stream(model=operation_model)
 
 
 class TestConvertStringBodyToFileLikeObject(BaseSessionTest):

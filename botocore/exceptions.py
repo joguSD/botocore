@@ -456,3 +456,10 @@ class MD5UnavailableError(BotoCoreError):
 
 class MetadataRetrievalError(BotoCoreError):
     fmt = "Error retrieving metadata: {error_msg}"
+
+
+class H2ConfigurationError(BotoCoreError):
+    fmt = (
+        '{error_msg}. If you wish to enable HTTP/2 client support refer to '
+        'the HTTP/2 configuration documentation found here: TODO '
+    )

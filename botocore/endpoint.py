@@ -21,7 +21,7 @@ from botocore.vendored import six
 
 from botocore.awsrequest import create_request_object
 from botocore.exceptions import HTTPClientError
-from botocore.http_session import URLLib3Session
+from botocore.http_session import URLLib3Session, HyperSession
 from botocore.utils import is_valid_endpoint_url, get_environ_proxies
 from botocore.hooks import first_non_none_response
 from botocore.history import get_global_history_recorder
@@ -224,15 +224,20 @@ class EndpointCreator(object):
                         timeout=DEFAULT_TIMEOUT,
                         max_pool_connections=MAX_POOL_CONNECTIONS,
                         http_session_cls=URLLib3Session,
-                        proxies=None):
-        if not is_valid_endpoint_url(endpoint_url):
+                        proxies=None, h2_enabled=False):
 
+        if not is_valid_endpoint_url(endpoint_url):
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
+
         if proxies is None:
             proxies = self._get_proxies(endpoint_url)
-        endpoint_prefix = service_model.endpoint_prefix
 
+        endpoint_prefix = service_model.endpoint_prefix
         logger.debug('Setting %s timeout as %s', endpoint_prefix, timeout)
+
+        if h2_enabled:
+            http_session_cls = HyperSession
+
         http_session = http_session_cls(
             timeout=timeout,
             proxies=proxies,

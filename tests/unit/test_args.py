@@ -11,12 +11,15 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-import botocore.config
-from tests import unittest
 import mock
+from tests import unittest
+from nose.tools import raises
 
+import botocore.config
 from botocore import args
+from botocore.handlers import block_event_stream
 from botocore.config import Config
+from botocore.exceptions import H2ConfigurationError
 
 
 class TestCreateClientArgs(unittest.TestCase):
@@ -124,11 +127,11 @@ class TestCreateClientArgs(unittest.TestCase):
         with mock.patch('botocore.args.EndpointCreator') as m:
             args_create.get_client_args(
                 service_model, 'us-west-2', True, 'https://ec2/', True,
-                None, {}, config, bridge)
+                None, {}, config, bridge, False)
             m.return_value.create_endpoint.assert_called_with(
                 mock.ANY, endpoint_url='https://ec2/', region_name='us-west-2',
                 response_parser_factory=None, timeout=(60, 60), verify=True,
-                max_pool_connections=20, proxies=None
+                max_pool_connections=20, proxies=None, h2_enabled=False,
             )
 
     def test_proxies_from_client_config_forwarded_to_endpoint_creator(self):
@@ -152,11 +155,11 @@ class TestCreateClientArgs(unittest.TestCase):
         with mock.patch('botocore.args.EndpointCreator') as m:
             args_create.get_client_args(
                 service_model, 'us-west-2', True, 'https://ec2/', True,
-                None, {}, config, bridge)
+                None, {}, config, bridge, False)
             m.return_value.create_endpoint.assert_called_with(
                 mock.ANY, endpoint_url='https://ec2/', region_name='us-west-2',
                 response_parser_factory=None, timeout=(60, 60), verify=True,
-                proxies=proxies, max_pool_connections=10
+                proxies=proxies, max_pool_connections=10, h2_enabled=False,
             )
 
     def test_s3_with_endpoint_url_still_resolves_region(self):
@@ -182,7 +185,7 @@ class TestCreateClientArgs(unittest.TestCase):
         ]
         client_args = self.args_create.get_client_args(
             service_model, 'us-west-2', True, 'http://other.com/', True, None,
-            {}, config, bridge)
+            {}, config, bridge, False)
         self.assertEqual(
             client_args['client_config'].region_name, 'us-west-2')
 
@@ -201,7 +204,7 @@ class TestCreateClientArgs(unittest.TestCase):
         }]
         client_args = self.args_create.get_client_args(
             service_model, 'us-west-2', True, 'http://other.com/', True, None,
-            {}, config, bridge)
+            {}, config, bridge, False)
         self.assertEqual(client_args['client_config'].region_name, None)
 
     def test_provide_retry_config(self):
@@ -221,6 +224,83 @@ class TestCreateClientArgs(unittest.TestCase):
         }]
         client_args = self.args_create.get_client_args(
             service_model, 'us-west-2', True, 'https://ec2/', True, None,
-            {}, config, bridge)
+            {}, config, bridge, False)
         self.assertEqual(
             client_args['client_config'].retries, {'max_attempts': 10})
+
+
+class TestEnableH2ConfigurationMatrix(unittest.TestCase):
+    def setUp(self):
+        self.emitter = mock.Mock()
+        self.args_create = args.ClientArgsCreator(self.emitter, None, None,
+                                                  None, None)
+        self.service_model = mock.Mock()
+        self.service_model.metadata = {
+            'serviceFullName': 'MyService',
+            'protocol': 'query'
+        }
+        self.service_model.operation_names = []
+
+        self.bridge = mock.Mock()
+        self.bridge.resolve.return_value = {
+            'region_name': 'us-west-2', 'signature_version': 'v4',
+            'endpoint_url': 'https://ec2/',
+            'signing_name': 'ec2', 'signing_region': 'us-west-2',
+            'metadata': {}
+        }
+
+    def get_client_args(self):
+        self.args_create.get_client_args(
+            self.service_model, 'us-west-2', True, 'https://ec2/', True,
+            None, {}, None, self.bridge, self.h2_enabled_config)
+
+    def assert_forwarded_h2_enabled_is(self, forwarded_h2_enabled):
+        with mock.patch('botocore.args.EndpointCreator.create_endpoint') as m:
+            self.get_client_args()
+            _, kwargs = m.call_args
+            self.assertEqual(forwarded_h2_enabled, kwargs.get('h2_enabled'))
+
+    def test_h2_enabled_and_required(self):
+        self.h2_enabled_config = True
+        self.service_model.protocol_settings = {'h2': 'required'}
+        self.assert_forwarded_h2_enabled_is(True)
+
+    @raises(H2ConfigurationError)
+    def test_h2_not_enabled_and_required(self):
+        self.h2_enabled_config = False
+        self.service_model.protocol_settings = {'h2': 'required'}
+        self.get_client_args()
+
+    def test_h2_enabled_and_event_stream(self):
+        self.h2_enabled_config = True
+        self.service_model.protocol_settings = {'h2': 'eventstream'}
+        self.assert_forwarded_h2_enabled_is(True)
+        register_first = self.emitter.register_first
+        register_first.assert_not_called()
+
+    def test_h2_not_enabled_and_event_stream(self):
+        self.h2_enabled_config = False
+        self.service_model.protocol_settings = {'h2': 'eventstream'}
+        self.assert_forwarded_h2_enabled_is(False)
+        register_first = self.emitter.register_first
+        register_first.assert_called_with('before-call', block_event_stream)
+
+    def test_h2_enabled_and_optional(self):
+        self.h2_enabled_config = True
+        self.service_model.protocol_settings = {'h2': 'optional'}
+        self.assert_forwarded_h2_enabled_is(True)
+
+    def test_h2_not_enabled_and_optional(self):
+        self.h2_enabled_config = False
+        self.service_model.protocol_settings = {'h2': 'optional'}
+        self.assert_forwarded_h2_enabled_is(False)
+
+    def test_h2_enabled_and_unknown(self):
+        self.h2_enabled_config = True
+        self.service_model.protocol_settings = {'h2': 'unknownvalue'}
+        self.assert_forwarded_h2_enabled_is(False)
+
+    def test_h2_not_enabled_and_unknown(self):
+        self.h2_enabled_config = False
+        self.service_model.protocol_settings = {'h2': 'unknownvalue'}
+        self.assert_forwarded_h2_enabled_is(False)

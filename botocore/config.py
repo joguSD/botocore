@@ -102,6 +102,10 @@ class Config(object):
           this value to 0 will result in no retries ever being attempted on
           the initial request. If not provided, the number of retries will
           default to whatever is modeled, which is typically four retries.
+
+    :type h2_enabled: bool
+    :param h2_enabled: Use an HTTP client that supports the HTTP/2 protocol
+        when the service being called also supports HTTP/2.
     """
     OPTION_DEFAULTS = OrderedDict([
         ('region_name', None),
@@ -114,7 +118,8 @@ class Config(object):
         ('max_pool_connections', MAX_POOL_CONNECTIONS),
         ('proxies', None),
         ('s3', None),
-        ('retries', None)
+        ('retries', None),
+        ('h2_enabled', None),
     ])
 
     def __init__(self, *args, **kwargs):

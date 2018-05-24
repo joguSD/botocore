@@ -23,6 +23,8 @@ import botocore.serialize
 from botocore.signers import RequestSigner
 from botocore.config import Config
 from botocore.endpoint import EndpointCreator
+from botocore.handlers import block_event_stream
+from botocore.exceptions import H2ConfigurationError
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +41,7 @@ class ClientArgsCreator(object):
 
     def get_client_args(self, service_model, region_name, is_secure,
                         endpoint_url, verify, credentials, scoped_config,
-                        client_config, endpoint_bridge):
+                        client_config, endpoint_bridge, h2_enabled):
         final_args = self.compute_client_args(
             service_model, client_config, endpoint_bridge, region_name,
             endpoint_url, is_secure, scoped_config)
@@ -70,13 +72,37 @@ class ClientArgsCreator(object):
         new_config = Config(**config_kwargs)
         endpoint_creator = EndpointCreator(event_emitter)
 
+        h2_setting = service_model.protocol_settings.get('h2')
+        h2_debug_msg = (
+            'Determining if HTTP/2 should be used for %s client: '
+            'Protocol Setting=%s, User Opt-In=%s'
+        )
+        logger.debug(h2_debug_msg, service_name, h2_setting, h2_enabled)
+        if h2_setting == 'required':
+            if h2_enabled is not True:
+                error_msg = (
+                    'Service: {service_name} requires an HTTP/2 enabled client'
+                ).format(service_name=service_name)
+                raise H2ConfigurationError(error_msg=error_msg)
+        elif h2_setting == 'eventstream':
+            # If Opt-In flag is off, raise exception on event stream usage
+            if h2_enabled is not True:
+                event_emitter.register_first('before-call', block_event_stream)
+        elif h2_setting == 'optional':
+            pass  # Just use the Opt-In flag as is
+        else:
+            logger.debug('Unknown h2 setting: %s, ignoring.', h2_setting)
+            h2_enabled = False
+
         endpoint = endpoint_creator.create_endpoint(
             service_model, region_name=endpoint_region_name,
             endpoint_url=endpoint_config['endpoint_url'], verify=verify,
             response_parser_factory=self._response_parser_factory,
             max_pool_connections=new_config.max_pool_connections,
             proxies=new_config.proxies,
-            timeout=(new_config.connect_timeout, new_config.read_timeout))
+            timeout=(new_config.connect_timeout, new_config.read_timeout),
+            h2_enabled=h2_enabled,
+        )
 
         serializer = botocore.serialize.create_serializer(
             protocol, parameter_validation)

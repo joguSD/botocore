@@ -475,7 +475,7 @@ class TestCreateClient(BaseSessionTest):
             service_name=mock.ANY, region_name=mock.ANY, is_secure=mock.ANY,
             endpoint_url=mock.ANY, verify=mock.ANY, credentials=mock.ANY,
             scoped_config=mock.ANY, client_config=config,
-            api_version=mock.ANY)
+            api_version=mock.ANY, h2_enabled=mock.ANY)
 
     @mock.patch('botocore.client.ClientCreator')
     def test_create_client_with_default_client_config(self, client_creator):
@@ -487,7 +487,7 @@ class TestCreateClient(BaseSessionTest):
             service_name=mock.ANY, region_name=mock.ANY, is_secure=mock.ANY,
             endpoint_url=mock.ANY, verify=mock.ANY, credentials=mock.ANY,
             scoped_config=mock.ANY, client_config=config,
-            api_version=mock.ANY)
+            api_version=mock.ANY, h2_enabled=mock.ANY)
 
     @mock.patch('botocore.client.ClientCreator')
     def test_create_client_with_merging_client_configs(self, client_creator):
@@ -506,6 +506,18 @@ class TestCreateClient(BaseSessionTest):
         # config or the one passed in. It should be a new config.
         self.assertIsNot(used_client_config, config)
         self.assertIsNot(used_client_config, other_config)
+
+    @mock.patch('botocore.client.ClientCreator')
+    def test_create_client_with_h2_config_enabled(self, client_creator):
+        config = botocore.config.Config(h2_enabled=True)
+        self.session.set_default_client_config(config)
+        self.session.create_client('sts')
+
+        client_creator.return_value.create_client.assert_called_with(
+            service_name=mock.ANY, region_name=mock.ANY, is_secure=mock.ANY,
+            endpoint_url=mock.ANY, verify=mock.ANY, credentials=mock.ANY,
+            scoped_config=mock.ANY, client_config=config,
+            api_version=mock.ANY, h2_enabled=True)
 
     def test_create_client_with_region(self):
         ec2_client = self.session.create_client(

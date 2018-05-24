@@ -34,9 +34,14 @@ class TestServiceModel(unittest.TestCase):
 
     def setUp(self):
         self.model = {
-            'metadata': {'protocol': 'query',
-                         'endpointPrefix': 'endpoint-prefix',
-                         'serviceId': 'MyService'},
+            'metadata': {
+                'protocol': 'query',
+                'serviceId': 'MyService',
+                'endpointPrefix': 'endpoint-prefix',
+                'protocolSettings': {
+                    'h2': 'optional'
+                }
+            },
             'documentation': 'Documentation value',
             'operations': {},
             'shapes': {
@@ -74,6 +79,10 @@ class TestServiceModel(unittest.TestCase):
 
     def test_shape_names(self):
         self.assertEqual(self.service_model.shape_names, ['StringShape'])
+
+    def test_protocol_settings(self):
+        h2_setting = self.service_model.protocol_settings.get('h2')
+        self.assertEqual(h2_setting, 'optional')
 
 
 class TestOperationModelFromService(unittest.TestCase):

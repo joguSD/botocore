@@ -35,6 +35,7 @@ from botocore.signers import add_generate_db_auth_token
 from botocore.exceptions import ParamValidationError
 from botocore.exceptions import AliasConflictParameterError
 from botocore.exceptions import UnsupportedTLSVersionWarning
+from botocore.exceptions import H2ConfigurationError
 from botocore.utils import percent_encode, SAFE_CHARS
 from botocore.utils import switch_host_with_param
 
@@ -176,6 +177,15 @@ def json_decode_template_body(parsed, **kwargs):
             parsed['TemplateBody'] = value
         except (ValueError, TypeError):
             logger.debug('error loading JSON', exc_info=True)
+
+
+def block_event_stream(model, **kwargs):
+    if model.has_event_stream_output or model.has_event_stream_input:
+        error_msg = (
+            'This client is configured to use HTTP/1.1 only. However this '
+            'operation is an event stream that requires an HTTP/2 client'
+        )
+        raise H2ConfigurationError(error_msg=error_msg)
 
 
 def calculate_md5(params, **kwargs):

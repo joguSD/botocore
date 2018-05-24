@@ -13,7 +13,7 @@
 
 from tests import unittest
 
-from mock import Mock, patch, sentinel
+from mock import Mock, patch, sentinel, ANY
 from botocore.vendored.requests import ConnectionError
 
 from botocore.compat import six
@@ -332,3 +332,17 @@ class TestEndpointCreator(unittest.TestCase):
         )
         session_args = mock_session.call_args[1]
         self.assertEqual(session_args.get('max_pool_connections'), 100)
+
+    def test_creates_endpoint_with_http2_session(self):
+        with patch('botocore.endpoint.HyperSession') as session:
+            endpoint = self.creator.create_endpoint(
+                self.service_model, region_name='us-west-2',
+                endpoint_url='https://example.com',
+                h2_enabled=True,
+            )
+            session.assert_called_with(
+                verify=ANY,
+                proxies=ANY,
+                timeout=ANY,
+                max_pool_connections=ANY
+            )

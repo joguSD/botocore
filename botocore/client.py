@@ -62,7 +62,8 @@ class ClientCreator(object):
                       endpoint_url=None, verify=None,
                       credentials=None, scoped_config=None,
                       api_version=None,
-                      client_config=None):
+                      client_config=None,
+                      h2_enabled=False):
         responses = self._event_emitter.emit(
             'choose-service-name', service_name=service_name)
         service_name = first_non_none_response(responses, default=service_name)
@@ -73,7 +74,8 @@ class ClientCreator(object):
             service_signing_name=service_model.metadata.get('signingName'))
         client_args = self._get_client_args(
             service_model, region_name, is_secure, endpoint_url,
-            verify, credentials, scoped_config, client_config, endpoint_bridge)
+            verify, credentials, scoped_config, client_config, endpoint_bridge,
+            h2_enabled)
         service_client = cls(**client_args)
         self._register_retries(service_client)
         self._register_s3_events(
@@ -274,15 +276,16 @@ class ClientCreator(object):
                 return 's3' + suffix
 
     def _get_client_args(self, service_model, region_name, is_secure,
-                         endpoint_url, verify, credentials,
-                         scoped_config, client_config, endpoint_bridge):
+                         endpoint_url, verify, credentials, scoped_config,
+                         client_config, endpoint_bridge, h2_enabled):
         args_creator = ClientArgsCreator(
             self._event_emitter, self._user_agent,
             self._response_parser_factory, self._loader,
             self._exceptions_factory)
         return args_creator.get_client_args(
-            service_model, region_name, is_secure, endpoint_url,
-            verify, credentials, scoped_config, client_config, endpoint_bridge)
+            service_model, region_name, is_secure, endpoint_url, verify,
+            credentials, scoped_config, client_config, endpoint_bridge,
+            h2_enabled)
 
     def _create_methods(self, service_model):
         op_dict = {}
