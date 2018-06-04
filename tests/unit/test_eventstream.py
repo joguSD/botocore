@@ -19,8 +19,7 @@ from botocore.parsers import EventStreamXMLParser
 from botocore.eventstream import (
     EventStreamMessage, MessagePrelude, EventStreamBuffer,
     ChecksumMismatch, InvalidPayloadLength, InvalidHeadersLength,
-    DuplicateHeader, EventStreamHeaderParser, DecodeUtils, EventStream,
-    NoInitialResponseError
+    DuplicateHeader, EventStreamHeaderParser, DecodeUtils, EventStream
 )
 from botocore.exceptions import EventStreamError
 
@@ -409,7 +408,7 @@ def test_event_stream_wrapper_close():
     raw_stream.close.assert_called_once_with()
 
 
-def test_event_stream_initial_response():
+def test_event_stream_next_raw_event():
     raw_stream = create_mock_raw_stream(
         b'\x00\x00\x00~\x00\x00\x00O\xc5\xa3\xdd\xc6\r:message-type\x07\x00',
         b'\x05event\x0b:event-type\x07\x00\x10initial-response\r:content-type',
@@ -418,7 +417,7 @@ def test_event_stream_initial_response():
     parser = Mock(spec=EventStreamXMLParser)
     output_shape = Mock()
     event_stream = EventStream(raw_stream, output_shape, parser, '')
-    event = event_stream.get_initial_response()
+    event = event_stream.next_raw_event()
     headers = {
         ':message-type': 'event',
         ':event-type': 'initial-response',
@@ -428,23 +427,10 @@ def test_event_stream_initial_response():
     assert event.headers == headers
     assert event.payload == payload
 
-
-@raises(NoInitialResponseError)
-def test_event_stream_initial_response_wrong_type():
-    raw_stream = create_mock_raw_stream(
-        b"\x00\x00\x00+\x00\x00\x00\x0e4\x8b\xec{\x08event-id\x04\x00",
-        b"\x00\xa0\x0c{'foo':'bar'}\xd3\x89\x02\x85",
-    )
-    parser = Mock(spec=EventStreamXMLParser)
-    output_shape = Mock()
-    event_stream = EventStream(raw_stream, output_shape, parser, '')
-    event_stream.get_initial_response()
-
-
-@raises(NoInitialResponseError)
-def test_event_stream_initial_response_no_event():
+def test_event_stream_next_raw_event_is_none():
     raw_stream = create_mock_raw_stream(b'')
     parser = Mock(spec=EventStreamXMLParser)
     output_shape = Mock()
     event_stream = EventStream(raw_stream, output_shape, parser, '')
-    event_stream.get_initial_response()
+    event = event_stream.next_raw_event()
+    assert event is None

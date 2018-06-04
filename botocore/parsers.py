@@ -180,6 +180,21 @@ class ResponseParserError(Exception):
     pass
 
 
+class NoInitialResponseError(ResponseParserError):
+    """An event of type initial-response was not received.
+
+    This exception is raised when the event stream produced no events or
+    the first event in the stream was not of the initial-response type.
+    """
+    def __init__(self, event_type=None):
+        message = (
+            'The event stream either produced no events or the first event '
+            'in the stream was not of the initial-response event type. '
+            'First event received was of type: {event_type}.'
+        ).format(event_type=event_type)
+        super(NoInitialResponseError, self).__init__(message)
+
+
 class ResponseParser(object):
     """Base class for response parsing.
 
@@ -717,7 +732,7 @@ class JSONParser(BaseJSONParser):
             event_name, event_shape = self._get_event_stream_member(shape)
             if event_name:
                 event_stream = self._create_event_stream(response, event_shape)
-                event = event_stream.get_initial_response()
+                event = self._get_intial_event(event_stream)
                 parsed = self._handle_json_body(event.payload, shape)
                 parsed[event_name] = event_stream
             else:
@@ -731,6 +746,15 @@ class JSONParser(BaseJSONParser):
         # to richer types (blobs, timestamps, etc.
         parsed_json = self._parse_body_as_json(raw_body)
         return self._parse_shape(shape, parsed_json)
+
+    def _get_intial_event(self, event_stream):
+        event = event_stream.next_raw_event()
+        event_type = None
+        if event:
+            event_type = event.headers.get(':event-type')
+            if event_type == 'initial-response':
+                return event
+        raise NoInitialResponseError(event_type=event_type)
 
     def _get_event_stream_member(self, shape):
         for member_name, member in getattr(shape, 'members', {}).items():

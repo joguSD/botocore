@@ -61,17 +61,6 @@ class ChecksumMismatch(ParserError):
         super(ChecksumMismatch, self).__init__(message)
 
 
-class NoInitialResponseError(ParserError):
-    """An event of type initial-response was not received.
-
-    This exception is raised when the event stream produced no events or
-    the first event in the stream was not of the initial-response type.
-    """
-    def __init__(self):
-        message = 'First event was not of the initial-response type'
-        super(NoInitialResponseError, self).__init__(message)
-
-
 class DecodeUtils(object):
     """Unpacking utility functions used in the decoder.
 
@@ -586,15 +575,16 @@ class EventStream(object):
         else:
             raise EventStreamError(parsed_response, self._operation_name)
 
-    def get_initial_response(self):
+    def next_raw_event(self):
+        """ Returns the next event in the event stream unparsed.
+
+        :rtype: EventStreamMessage
+        :returns: The next event stream message or None
+        """
         try:
-            initial_event = next(self._event_generator)
-            event_type = initial_event.headers.get(':event-type')
-            if event_type == 'initial-response':
-                return initial_event
+            return next(self._event_generator)
         except StopIteration:
-            pass
-        raise NoInitialResponseError()
+            return None
 
     def close(self):
         """Closes the underlying streaming body. """
