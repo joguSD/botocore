@@ -312,7 +312,8 @@ class EventStreamMessage(object):
         self.crc = crc
 
     def to_response_dict(self, status_code=200):
-        if self.headers.get(':message-type') == 'error':
+        message_type = self.headers.get(':message-type')
+        if message_type == 'error' or message_type == 'exception':
             status_code = 400
         return {
             'status_code': status_code,
