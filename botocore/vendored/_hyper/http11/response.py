@@ -107,7 +107,7 @@ class HTTP11Response(object):
         self._buffered_data = b''
         self._chunker = None
 
-    def read(self, amt=None, decode_content=True):
+    def read(self, amt=None, decode_content=False):
         """
         Reads the response body, or up to the next ``amt`` bytes.
 
@@ -197,7 +197,7 @@ class HTTP11Response(object):
 
         return data
 
-    def read_chunked(self, decode_content=True):
+    def read_chunked(self, decode_content=False):
         """
         Reads chunked transfer encoded bodies. This method returns a generator:
         each iteration of which yields one chunk *unless* the chunks are

@@ -99,7 +99,7 @@ class HTTP20Response(object):
 
         return self._trailers
 
-    def read(self, amt=None, decode_content=True):
+    def read(self, amt=None, decode_content=False):
         """
         Reads the response body, or up to the next ``amt`` bytes.
 
@@ -144,7 +144,7 @@ class HTTP20Response(object):
 
         return data
 
-    def read_chunked(self, decode_content=True):
+    def read_chunked(self, decode_content=False):
         """
         Reads chunked transfer encoded bodies. This method returns a generator:
         each iteration of which yields one data frame *unless* the frames
