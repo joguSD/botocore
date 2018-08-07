@@ -13,7 +13,7 @@ from ..compat import ssl
 from ..tls import wrap_socket, H2_NPN_PROTOCOLS, H2C_PROTOCOL
 from ..common.exceptions import (
     ConnectionResetError, NewConnectionError, ConnectionTimeoutError,
-    ProxyError, ReadTimeoutError
+    ProxyError, ReadTimeoutError, ProtocolNegotiationError
 )
 from ..common.bufsocket import BufferedSocket
 from ..common.headers import HTTPHeaderMap
@@ -387,11 +387,15 @@ class HTTP20Connection(object):
             else:
                 proto = H2C_PROTOCOL
 
-            log.debug("Selected NPN protocol: %s", proto)
-            assert proto in H2_NPN_PROTOCOLS or proto == H2C_PROTOCOL, (
-                "No suitable protocol found. Supported protocols: %s. "
-                "Check your OpenSSL version."
-            ) % ','.join(H2_NPN_PROTOCOLS + [H2C_PROTOCOL])
+            log.debug("Negotiated protocol: %s", proto)
+            if not (proto in H2_NPN_PROTOCOLS or proto == H2C_PROTOCOL):
+                error_message = (
+                    "Failed to negotiate H2 via ALPN. Either this endpoint is "
+                    "not accepting H2 connections at this time or the version "
+                    "of OpenSSL being used does not support ALPN. "
+                    "Negotiated: %s, but must be one of %s."
+                ) % (proto, ','.join(H2_NPN_PROTOCOLS))
+                raise ProtocolNegotiationError(error_message)
 
             self._sock = BufferedSocket(sock, self.network_buffer_size)
 

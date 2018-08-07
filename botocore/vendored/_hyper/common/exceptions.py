@@ -98,6 +98,12 @@ except NameError:  # pragma: no cover
         """
 
 
+class ProtocolNegotiationError(ConnectionError):
+    """
+    Attempt to negotiate H2 via ALPN failed.
+    """
+
+
 class ConnectionTimeoutError(TimeoutError, ConnectionError):
     """
     Attempt to create a new connection to host timed out.
