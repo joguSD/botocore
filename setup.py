@@ -53,7 +53,7 @@ setup(
     url='https://github.com/boto/botocore',
     scripts=[],
     packages=find_packages(exclude=['tests*']),
-    package_data={'botocore': ['data/*.json', 'data/*/*.json'],
+    package_data={'botocore': ['cacert.pem', 'data/*.json', 'data/*/*.json'],
                   'botocore.vendored.requests': ['*.pem']},
     include_package_data=True,
     install_requires=requires,
@@ -61,7 +61,13 @@ setup(
         ':python_version=="2.6"': [
             'ordereddict==1.1',
             'simplejson==3.3.0',
-        ]
+        ],
+        'h2': [
+            'h2>=2.4,<3.0,!=2.5.0',
+            'hyperframe>=3.2,<4.0',
+            'rfc3986>=1.1.0,<2.0',
+            'brotlipy>=0.7.0,<1.0',
+        ],
     },
     license="Apache License 2.0",
     classifiers=(

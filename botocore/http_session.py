@@ -212,11 +212,15 @@ class URLLib3Session(object):
             raise HTTPClientError(error=e)
 
 
-from hyper.http20.connection import HTTP20Connection
-from hyper.compat import urlparse, ssl
-from hyper.tls import init_context
-from hyper.common.util import to_native_string
-from hyper.common import exceptions as hyper_errors
+try:
+    from botocore.vendored._hyper.http20.connection import HTTP20Connection
+    from botocore.vendored._hyper.compat import urlparse, ssl
+    from botocore.vendored._hyper.tls import init_context
+    from botocore.vendored._hyper.common.util import to_native_string
+    from botocore.vendored._hyper.common import exceptions as hyper_errors
+except ImportError:
+    # Hyper is an optional dependency
+    pass
 
 
 class HyperSession(object):
@@ -271,13 +275,13 @@ class HyperSession(object):
             ssl_context = None
             if not verify:
                 verify = False
-                ssl_context = init_context(cert=cert)
+                cert_path = DEFAULT_CA_BUNDLE
+                ssl_context = init_context(cert_path=cert_path, cert=cert)
                 ssl_context.check_hostname = False
                 ssl_context.verify_mode = ssl.CERT_NONE
-            elif verify is True and cert is not None:
-                ssl_context = init_context(cert=cert)
-            elif verify is not True:
-                ssl_context = init_context(cert_path=verify, cert=cert)
+            else:
+                cert_path = get_cert_path(verify)
+                ssl_context = init_context(cert_path=cert_path, cert=cert)
 
             conn = HTTP20Connection(
                 host,
