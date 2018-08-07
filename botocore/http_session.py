@@ -210,3 +210,158 @@ class URLLib3Session(object):
             )
         except Exception as e:
             raise HTTPClientError(error=e)
+
+
+from hyper.http20.connection import HTTP20Connection
+from hyper.compat import urlparse, ssl
+from hyper.tls import init_context
+from hyper.common.util import to_native_string
+from hyper.common import exceptions as hyper_errors
+
+
+class HyperSession(object):
+    """
+    A Requests Transport Adapter that uses hyper to send requests over
+    HTTP/2. This implements some degree of connection pooling to maximise the
+    HTTP/2 gain.
+    """
+    def __init__(self,
+                 verify=True,
+                 proxies=None,
+                 timeout=None,
+                 max_pool_connections=MAX_POOL_CONNECTIONS,
+    ):
+        self._verify = verify
+        self._proxy_config = ProxyConfiguration(proxies=proxies)
+        if timeout is None:
+            timeout = DEFAULT_TIMEOUT
+        self._timeout = timeout
+        self._max_pool_connections = max_pool_connections
+        self._connections = {}
+
+    def _get_connection(self, host, port, scheme, cert=None, verify=True,
+                        proxy=None, timeout=None):
+        """
+        Gets an appropriate HTTP/2 connection object based on
+        host/port/scheme/cert tuples.
+        """
+        secure = (scheme == 'https')
+
+        if port is None:  # pragma: no cover
+            port = 80 if not secure else 443
+
+        if proxy:
+            proxy_headers = self._proxy_config.proxy_headers_for(proxy)
+            proxy_netloc = urlparse(proxy).netloc
+        else:
+            proxy_headers = None
+            proxy_netloc = None
+
+        # We put proxy headers in the connection_key, because
+        # ``proxy_headers`` method might be overridden, so we can't
+        # rely on proxy headers being the same for the same proxies.
+        proxy_headers_key = (frozenset(proxy_headers.items())
+                             if proxy_headers else None)
+        connection_key = (host, port, scheme, cert, verify,
+                          proxy_netloc, proxy_headers_key)
+        try:
+            conn = self._connections[connection_key]
+        except KeyError:
+
+            ssl_context = None
+            if not verify:
+                verify = False
+                ssl_context = init_context(cert=cert)
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+            elif verify is True and cert is not None:
+                ssl_context = init_context(cert=cert)
+            elif verify is not True:
+                ssl_context = init_context(cert_path=verify, cert=cert)
+
+            conn = HTTP20Connection(
+                host,
+                port,
+                secure=secure,
+                ssl_context=ssl_context,
+                proxy_host=proxy_netloc,
+                proxy_headers=proxy_headers,
+                timeout=timeout,
+                force_proto='h2',
+            )
+            self._connections[connection_key] = conn
+
+        return conn
+
+    def send(self, request):
+        """
+        Sends a HTTP message to the server.
+        """
+        try:
+            proxy_url = self._proxy_config.proxy_url_for(request.url)
+            parsed = urlparse(request.url)
+            if isinstance(request.body, str):
+                request.body = request.body.encode('utf-8')
+            conn = self._get_connection(
+                parsed.hostname,
+                parsed.port,
+                parsed.scheme,
+                verify=self._verify,
+                proxy=proxy_url,
+                timeout=self._timeout)
+
+            # Build the selector.
+            selector = parsed.path
+            selector += '?' + parsed.query if parsed.query else ''
+            selector += '#' + parsed.fragment if parsed.fragment else ''
+
+            conn.request(
+                request.method,
+                selector,
+                request.body,
+                request.headers
+            )
+            hyper_response = conn.get_response()
+
+            def ghetto_stream(self, amt=2**16, decode_content=None):
+                while True:
+                    chunk = self.read(amt, decode_content=decode_content)
+                    if not chunk:
+                        break
+                    yield chunk
+
+            hyper_response.stream = ghetto_stream.__get__(hyper_response)
+
+            http_response = botocore.awsrequest.AWSResponse(
+                request.url,
+                hyper_response.status,
+                (map(to_native_string, h) for h in hyper_response.headers.items()),
+                hyper_response
+            )
+
+            if not request.stream_output:
+                # Cause the raw stream to be exhausted immediately. We do it
+                # this way instead of using preload_content because
+                # preload_content will never buffer chunked responses
+                http_response.content
+
+            return http_response
+        except (hyper_errors.NewConnectionError, hyper_errors.ConnectionTimeoutError) as e:
+            raise EndpointConnectionError(endpoint_url=request.url, error=e)
+        except hyper_errors.ProxyError as e:
+            raise ProxyConnectionError(proxy_url=proxy_url, error=e)
+        except hyper_errors.ReadTimeoutError as e:
+            raise ReadTimeoutError(endpoint_url=request.url, error=e)
+        except hyper_errors.ConnectionResetError as e:
+            raise ConnectionClosedError(
+                error=e,
+                request=request,
+                endpoint_url=request.url
+            )
+        except Exception as e:
+            raise HTTPClientError(error=e)
+
+    def close(self):
+        for connection in self._connections.values():
+            connection.close()
+        self._connections.clear()
