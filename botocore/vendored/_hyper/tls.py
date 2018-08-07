@@ -52,15 +52,10 @@ def wrap_socket(sock, server_hostname, ssl_context=None, force_proto=None):
     # Allow for the protocol to be forced externally.
     proto = force_proto
 
-    # ALPN is newer, so we prefer it over NPN. The odds of us getting
-    # different answers is pretty low, but let's be sure.
+    # botocore note: We only use ALPN
     with ignore_missing():
         if proto is None:
             proto = ssl_sock.selected_alpn_protocol()
-
-    with ignore_missing():
-        if proto is None:
-            proto = ssl_sock.selected_npn_protocol()
 
     return (ssl_sock, proto)
 
@@ -107,9 +102,6 @@ def init_context(cert_path=None, cert=None, cert_password=None):
     context.load_verify_locations(cafile=cafile)
     context.verify_mode = ssl.CERT_REQUIRED
     context.check_hostname = True
-
-    with ignore_missing():
-        context.set_npn_protocols(SUPPORTED_NPN_PROTOCOLS)
 
     with ignore_missing():
         context.set_alpn_protocols(SUPPORTED_NPN_PROTOCOLS)
