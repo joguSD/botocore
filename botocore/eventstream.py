@@ -552,15 +552,20 @@ class EventStream(object):
         self._output_shape = output_shape
         self._operation_name = operation_name
         self._parser = parser
-        self._buffer = EventStreamBuffer()
+        self._event_generator = self._create_raw_event_generator()
 
     def __iter__(self):
-        for data in self._raw_stream.stream():
-            self._buffer.add_data(data)
-            for event in self._buffer:
-                parsed_event = self._parse_event(event)
-                if parsed_event:
-                    yield parsed_event
+        for event in self._event_generator:
+            parsed_event = self._parse_event(event)
+            if parsed_event:
+                yield parsed_event
+
+    def _create_raw_event_generator(self):
+        event_stream_buffer = EventStreamBuffer()
+        for chunk in self._raw_stream.read_chunked():
+            event_stream_buffer.add_data(chunk)
+            for event in event_stream_buffer:
+                yield event
 
     def _parse_event(self, event):
         response_dict = event.to_response_dict()
@@ -569,6 +574,17 @@ class EventStream(object):
             return parsed_response
         else:
             raise EventStreamError(parsed_response, self._operation_name)
+
+    def next_raw_event(self):
+        """ Returns the next event in the event stream unparsed.
+
+        :rtype: EventStreamMessage
+        :returns: The next event stream message or None
+        """
+        try:
+            return next(self._event_generator)
+        except StopIteration:
+            return None
 
     def close(self):
         """Closes the underlying streaming body. """
