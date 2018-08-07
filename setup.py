@@ -66,7 +66,6 @@ setup(
             'h2>=2.4,<3.0,!=2.5.0',
             'hyperframe>=3.2,<4.0',
             'rfc3986>=1.1.0,<2.0',
-            'brotlipy>=0.7.0,<1.0',
         ],
     },
     license="Apache License 2.0",
