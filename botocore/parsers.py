@@ -657,16 +657,29 @@ class BaseEventStreamParser(ResponseParser):
         return final_parsed
 
     def _do_error_parse(self, response, shape):
-        error = {
-            'Error': {
-                'Code': response['headers'].get(':error-code', ''),
-                'Message': response['headers'].get(':error-message', ''),
+        exception_type = response['headers'].get(':exception-type')
+        exception_shape = shape.members.get(exception_type)
+        if exception_shape is not None:
+            body = {}
+            members = exception_shape.members
+            self._parse_payload(response, exception_shape, members, body)
+            error = {
+                'Error': {
+                    'Code': exception_type,
+                    'Message': body.get('Message', body.get('message', ''))
+                }
             }
-        }
+        else:
+            error = {
+                'Error': {
+                    'Code': response['headers'].get(':error-code', ''),
+                    'Message': response['headers'].get(':error-message', ''),
+                }
+            }
         return error
 
     def _parse_payload(self, response, shape, member_shapes, final_parsed):
-        if shape.serialization.get('event'):
+        if shape.serialization.get('event') or shape.metadata.get('exception'):
             for name in member_shapes:
                 member_shape = member_shapes[name]
                 if member_shape.serialization.get('eventpayload'):
