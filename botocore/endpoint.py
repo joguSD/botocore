@@ -16,11 +16,13 @@ import os
 import logging
 import time
 import threading
+import socket
 
 from botocore.vendored.requests.adapters import HTTPAdapter
 from botocore.vendored.requests.sessions import Session
 from botocore.vendored.requests.utils import get_environ_proxies
 from botocore.vendored.requests.exceptions import ConnectionError
+from botocore.vendored.requests.packages.urllib3.connection import HTTPConnection
 from botocore.vendored import six
 
 from botocore.awsrequest import create_request_object
@@ -83,6 +85,13 @@ def convert_to_response_dict(http_response, operation_model):
     return response_dict
 
 
+class BotocoreHTTPAdapter(HTTPAdapter):
+    def init_poolmanager(self, *args, **kwargs):
+        opts = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
+        kwargs['socket_options'] = HTTPConnection.default_socket_options + opts
+        super(BotocoreHTTPAdapter, self).init_poolmanager(*args, **kwargs)
+
+
 class BotocoreHTTPSession(Session):
     """Internal session class used to workaround requests behavior.
 
@@ -90,7 +99,7 @@ class BotocoreHTTPSession(Session):
 
     """
     def __init__(self, max_pool_connections=MAX_POOL_CONNECTIONS,
-                 http_adapter_cls=HTTPAdapter):
+                 http_adapter_cls=BotocoreHTTPAdapter):
         super(BotocoreHTTPSession, self).__init__()
         # In order to support a user provided "max_pool_connections", we need
         # to recreate the HTTPAdapter and pass in our max_pool_connections
