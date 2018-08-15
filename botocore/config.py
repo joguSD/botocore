@@ -110,6 +110,7 @@ class Config(object):
         ('user_agent_extra', None),
         ('connect_timeout', DEFAULT_TIMEOUT),
         ('read_timeout', DEFAULT_TIMEOUT),
+        ('tcp_keep_alive', False),
         ('parameter_validation', True),
         ('max_pool_connections', MAX_POOL_CONNECTIONS),
         ('proxies', None),

@@ -86,9 +86,13 @@ def convert_to_response_dict(http_response, operation_model):
 
 
 class BotocoreHTTPAdapter(HTTPAdapter):
+    def __init__(self, *args, tcp_keep_alive=False, **kwargs):
+        self.opts = HTTPConnection.default_socket_options
+        if tcp_keep_alive:
+            self.opts += [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
+        super(BotocoreHTTPAdapter, self).__init__(*args, **kwargs)
     def init_poolmanager(self, *args, **kwargs):
-        opts = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
-        kwargs['socket_options'] = HTTPConnection.default_socket_options + opts
+        kwargs['socket_options'] = self.opts
         super(BotocoreHTTPAdapter, self).init_poolmanager(*args, **kwargs)
 
 
@@ -99,12 +103,15 @@ class BotocoreHTTPSession(Session):
 
     """
     def __init__(self, max_pool_connections=MAX_POOL_CONNECTIONS,
-                 http_adapter_cls=BotocoreHTTPAdapter):
+                 http_adapter_cls=BotocoreHTTPAdapter, tcp_keep_alive=False):
         super(BotocoreHTTPSession, self).__init__()
         # In order to support a user provided "max_pool_connections", we need
         # to recreate the HTTPAdapter and pass in our max_pool_connections
         # value.
-        adapter = http_adapter_cls(pool_maxsize=max_pool_connections)
+        adapter = http_adapter_cls(
+            pool_maxsize=max_pool_connections,
+            tcp_keep_alive=tcp_keep_alive,
+        )
         # requests uses an HTTPAdapter for mounting both http:// and https://
         self.mount('https://', adapter)
         self.mount('http://', adapter)
@@ -130,7 +137,8 @@ class Endpoint(object):
     def __init__(self, host, endpoint_prefix,
                  event_emitter, proxies=None, verify=True,
                  timeout=DEFAULT_TIMEOUT, response_parser_factory=None,
-                 max_pool_connections=MAX_POOL_CONNECTIONS):
+                 max_pool_connections=MAX_POOL_CONNECTIONS,
+                 tcp_keep_alive=False):
         self._endpoint_prefix = endpoint_prefix
         self._event_emitter = event_emitter
         self.host = host
@@ -139,7 +147,9 @@ class Endpoint(object):
             proxies = {}
         self.proxies = proxies
         self.http_session = BotocoreHTTPSession(
-            max_pool_connections=max_pool_connections)
+            max_pool_connections=max_pool_connections,
+            tcp_keep_alive=tcp_keep_alive,
+        )
         self.timeout = timeout
         self.max_pool_connections = max_pool_connections
         logger.debug('Setting %s timeout as %s', endpoint_prefix, self.timeout)
@@ -300,7 +310,7 @@ class EndpointCreator(object):
                         verify=None, response_parser_factory=None,
                         timeout=DEFAULT_TIMEOUT,
                         max_pool_connections=MAX_POOL_CONNECTIONS,
-                        proxies=None):
+                        proxies=None, tcp_keep_alive=False):
         if not is_valid_endpoint_url(endpoint_url):
 
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
@@ -313,6 +323,7 @@ class EndpointCreator(object):
             proxies=proxies,
             verify=self._get_verify_value(verify),
             timeout=timeout,
+            tcp_keep_alive=tcp_keep_alive,
             max_pool_connections=max_pool_connections,
             response_parser_factory=response_parser_factory)
 

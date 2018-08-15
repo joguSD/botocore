@@ -75,6 +75,7 @@ class ClientArgsCreator(object):
             endpoint_url=endpoint_config['endpoint_url'], verify=verify,
             response_parser_factory=self._response_parser_factory,
             max_pool_connections=new_config.max_pool_connections,
+            tcp_keep_alive=new_config.tcp_keep_alive,
             proxies=new_config.proxies,
             timeout=(new_config.connect_timeout, new_config.read_timeout))
 
@@ -129,6 +130,7 @@ class ClientArgsCreator(object):
             config_kwargs.update(
                 connect_timeout=client_config.connect_timeout,
                 read_timeout=client_config.read_timeout,
+                tcp_keep_alive=client_config.tcp_keep_alive,
                 max_pool_connections=client_config.max_pool_connections,
                 proxies=client_config.proxies,
                 retries=client_config.retries
