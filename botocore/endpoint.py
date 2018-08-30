@@ -170,7 +170,11 @@ class Endpoint(object):
                 'url': request.url,
                 'body': request.body
             })
-            http_response = self._send(request)
+            event_name = 'before-send.%s.%s' % (self._endpoint_prefix, operation_model.name)
+            responses = self._event_emitter.emit(event_name, request=request)
+            http_response = first_non_none_response(responses)
+            if http_response is None:
+                http_response = self._send(request)
         except HTTPClientError as e:
             return (None, e)
         except Exception as e:
