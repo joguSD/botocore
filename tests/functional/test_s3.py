@@ -480,6 +480,9 @@ def test_correct_url_used_for_s3():
                  expected_url='http://bucket.s3.us-west-1.amazonaws.com/key')
 
     # Virtual host addressing is independent of signature version.
+    yield t.case(region='aws-global', bucket='bucket', key='key',
+                 signature_version='s3v4',
+                 expected_url='https://bucket.s3.amazonaws.com/key')
     yield t.case(region='us-west-2', bucket='bucket', key='key',
                  signature_version='s3v4',
                  expected_url=(
@@ -542,6 +545,9 @@ def test_correct_url_used_for_s3():
 
     # If you don't have a DNS compatible bucket, we use path style.
     yield t.case(
+        region='aws-global', bucket='bucket.dot', key='key',
+        expected_url='https://s3.amazonaws.com/bucket.dot/key')
+    yield t.case(
         region='us-west-2', bucket='bucket.dot', key='key',
         expected_url='https://s3.us-west-2.amazonaws.com/bucket.dot/key')
     yield t.case(
@@ -586,6 +592,10 @@ def test_correct_url_used_for_s3():
     # Explicitly configuring "virtual" addressing_style.
     virtual_hosting = {'addressing_style': 'virtual'}
     yield t.case(
+        region='aws-global', bucket='bucket', key='key',
+        s3_config=virtual_hosting,
+        expected_url='https://bucket.s3.amazonaws.com/key')
+    yield t.case(
         region='us-east-1', bucket='bucket', key='key',
         s3_config=virtual_hosting,
         expected_url='https://bucket.s3.us-east-1.amazonaws.com/key')
@@ -622,6 +632,10 @@ def test_correct_url_used_for_s3():
     # Test path style addressing.
     path_style = {'addressing_style': 'path'}
     yield t.case(
+        region='aws-global', bucket='bucket', key='key',
+        s3_config=path_style,
+        expected_url='https://s3.amazonaws.com/bucket/key')
+    yield t.case(
         region='us-east-1', bucket='bucket', key='key',
         s3_config=path_style,
         expected_url='https://s3.us-east-1.amazonaws.com/bucket/key')
@@ -633,6 +647,10 @@ def test_correct_url_used_for_s3():
 
     # S3 accelerate
     use_accelerate = {'use_accelerate_endpoint': True}
+    yield t.case(
+        region='aws-global', bucket='bucket', key='key',
+        s3_config=use_accelerate,
+        expected_url='https://bucket.s3-accelerate.amazonaws.com/key')
     yield t.case(
         region='us-east-1', bucket='bucket', key='key',
         s3_config=use_accelerate,
@@ -691,6 +709,14 @@ def test_correct_url_used_for_s3():
         s3_config=use_dualstack, signature_version='s3',
         # Still default to virtual hosted when possible on sigv2.
         expected_url='https://bucket.s3.dualstack.us-west-2.amazonaws.com/key')
+    yield t.case(
+        region=None, bucket='bucket', key='key',
+        s3_config=use_dualstack, signature_version='s3v4',
+        expected_url='https://bucket.s3.dualstack.us-east-1.amazonaws.com/key')
+    yield t.case(
+        region='aws-global', bucket='bucket', key='key',
+        s3_config=use_dualstack, signature_version='s3v4',
+        expected_url='https://bucket.s3.dualstack.aws-global.amazonaws.com/key')
     yield t.case(
         region='us-east-1', bucket='bucket', key='key',
         s3_config=use_dualstack, signature_version='s3v4',
@@ -860,7 +886,12 @@ def test_addressing_for_presigned_urls():
     # compatibility.
     t = S3AddressingCases(_verify_presigned_url_addressing)
 
-    # TODO: global
+    yield t.case(region=None, bucket='bucket', key='key',
+                 signature_version=None,
+                 expected_url='https://bucket.s3.amazonaws.com/key')
+    yield t.case(region='aws-global', bucket='bucket', key='key',
+                 signature_version=None,
+                 expected_url='https://bucket.s3.amazonaws.com/key')
     yield t.case(region='us-east-1', bucket='bucket', key='key',
                  signature_version=None,
                  expected_url='https://bucket.s3.us-east-1.amazonaws.com/key')
