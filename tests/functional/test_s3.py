@@ -2246,3 +2246,18 @@ def _verify_presigned_url_addressing(region, bucket, key, s3_config,
     parts = urlsplit(url)
     actual = '%s://%s%s' % parts[:3]
     assert_equal(actual, expected_url)
+
+
+class TestS3DeleteObjects(BaseS3OperationTest):
+    def test_escape_keys_in_xml_payload(self):
+        self.http_stubber.add_response()
+        with self.http_stubber:
+            response = self.client.delete_objects(
+                Bucket='mybucket',
+                Delete={
+                    'Objects': [{'Key': 'some\r\n\rkey'}]
+                },
+            )
+        request = self.http_stubber.requests[0]
+        self.assertNotIn(b'\r\n\r', request.body)
+        self.assertIn(b'&#xD;&#xA;&#xD;', request.body)

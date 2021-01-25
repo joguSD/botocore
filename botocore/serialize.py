@@ -599,6 +599,91 @@ class RestJSONSerializer(BaseRestSerializer, JSONSerializer):
         return json.dumps(serialized_body).encode(self.DEFAULT_ENCODING)
 
 
+class XMLSerializer(object):
+    _TEXT_SUBSTITUTIONS = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '\n': '&#xA;',
+        '\r': '&#xD;',
+    }
+
+    _ATTRIBUTE_SUBSTITIONS = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '"': '&quot;',
+        '\t': '&#x9;',
+        '\n': '&#xA;',
+        '\r': '&#xD;',
+    }
+
+    def tostring(self, root, writer=None):
+        if writer is None:
+            writer = six.StringIO()
+        self._serialize_node(writer, root)
+        return writer.getvalue()
+
+    def _escape(self, text, substitutions):
+        for escape, substitution in substitutions.items():
+            if escape in text:
+                text = text.replace(escape, substitution)
+        return text
+
+    def _serialize_node(self, writer, node):
+        name = node.tag
+        attributes = node.attrib
+        text = node.text
+        children = node.getchildren()
+
+        if children:
+            self._open_el(writer, name, attributes)
+            for child in children:
+                self._serialize_node(writer, child)
+            self._close_el(writer, name)
+        elif node.text:
+            self._text_node(writer, name, text, attributes)
+        else:
+            self._empty_node(writer, name, attributes)
+
+    def _empty_node(self, writer, name, attributes=None):
+        if not attributes:
+            node = "<{name} />".format(name=name)
+            writer.write(node)
+            return
+
+        attributes = self._attributes(attributes)
+        node = "<{name}{attributes}/>".format(name=name, attributes=attributes)
+        writer.write(node)
+
+    def _text_node(self, writer, name, text='', attributes=None):
+        attributes = self._attributes(attributes)
+        text = self._escape(text, self._TEXT_SUBSTITUTIONS)
+        node_fmt = "<{name}{attributes}>{text}</{name}>"
+        node = node_fmt.format(name=name, attributes=attributes, text=text)
+        writer.write(node)
+
+    def _open_el(self, writer, name, attributes=None):
+        attributes = self._attributes(attributes)
+        open_el_fmt = "<{name}{attributes}>"
+        open_el = open_el_fmt.format(name=name, attributes=attributes)
+        writer.write(open_el)
+
+    def _close_el(self, writer, name):
+        close_el_fmt = "</{name}>"
+        close_el = close_el_fmt.format(name=name)
+        writer.write(close_el)
+
+    def _attributes(self, attributes=None):
+        if attributes is None:
+            return ""
+        attrs = [""]
+        for key in attributes:
+            value =self._escape(attributes[key], self._ATTRIBUTE_SUBSTITIONS)
+            attr = '{key}="{value}"'.format(key=key, value=value)
+            attrs.append(attr)
+        return " ".join(attrs)
+
+
 class RestXMLSerializer(BaseRestSerializer):
     TIMESTAMP_FORMAT = 'iso8601'
 
@@ -607,7 +692,9 @@ class RestXMLSerializer(BaseRestSerializer):
         pseudo_root = ElementTree.Element('')
         self._serialize(shape, params, pseudo_root, root_name)
         real_root = list(pseudo_root)[0]
-        return ElementTree.tostring(real_root, encoding=self.DEFAULT_ENCODING)
+        #old_xml_string = ElementTree.tostring(real_root, encoding=self.DEFAULT_ENCODING)
+        xml_string = XMLSerializer().tostring(real_root).encode(self.DEFAULT_ENCODING)
+        return xml_string
 
     def _serialize(self, shape, params, xmlnode, name):
         method = getattr(self, '_serialize_type_%s' % shape.type_name,
