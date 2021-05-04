@@ -15,6 +15,14 @@ import sys, os
 from botocore.session import get_session
 from botocore.docs import generate_docs
 
+
+# TODO: REMOVE THIS
+import mock
+services = ['lambda']
+service_function = "botocore.loaders.Loader.list_available_services"
+patch = mock.patch(service_function, mock.Mock(return_value=services))
+patch.start()
+
 generate_docs(os.path.dirname(os.path.abspath(__file__)), get_session())
 
 # If extensions (or modules to document with autodoc) are in another directory,
