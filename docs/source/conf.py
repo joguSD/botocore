@@ -144,14 +144,14 @@ html_static_path = ['_static']
 
 # Custom sidebar templates, maps document names to template names.
 html_show_sourcelink = False
-html_sidebars = {
-    '**': [
-        # 'logo-text.html',
-        'globaltoc.html',
-        'localtoc.html',
-        'searchbox.html',
-    ]
-}
+# html_sidebars = {
+#     '**': [
+#         # 'logo-text.html',
+#         'searchbox.html',
+#         'globaltoc.html',
+#         'localtoc.html',
+#     ]
+# }
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
@@ -185,6 +185,8 @@ html_sidebars = {
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'botocoredoc'
+
+html_theme = 'sphinx_book_theme'
 
 # import guzzle_sphinx_theme
 # 
